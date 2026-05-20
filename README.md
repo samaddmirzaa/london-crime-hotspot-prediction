@@ -1,14 +1,5 @@
 # London Crime Hotspot Prediction
 
-![Top predicted hotspots](reports/figures/08_top_hotspots.png)
-
-> **Interactive map:** open [`reports/maps/london_hotspots.html`](reports/maps/london_hotspots.html)
-> in any browser, hover any ward to see predicted vs actual crime counts.
-
----
-
-## What this project does
-
 Crime data published by UK police forces says where a crime happened (at a
 deliberately blurred location) and which month it was recorded. It doesn't
 say what will happen next month. This project trains a model that, given a
