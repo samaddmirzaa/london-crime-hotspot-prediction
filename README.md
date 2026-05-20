@@ -23,7 +23,7 @@ training or model selection.
 
 | Model | MAE | RMSE | MAE vs naive | RMSE vs naive |
 |---|---|---|---|---|
-| Naive baseline (predict last month) | 4.34 | 7.81 | — | — |
+| Naive baseline (predict last month) | 4.34 | 7.81 |  |  |
 | **Random Forest (final model)** | **3.73** | **7.20** | **+14.0%** | **+7.8%** |
 | XGBoost (Poisson objective) | 3.67 | 8.39 | +15.5% | −7.3% |
 
@@ -58,48 +58,21 @@ The pipeline runs across eight numbered notebooks.
 Each notebook ends with a written summary explaining what it did, what it
 found, and what it decided.
 
-## Methodology choices worth highlighting
-
-These are the decisions a reviewer should look at if they want to know how
-serious the work is.
-
-**Chronological train/test split, not random k-fold.** For forecasting,
+Chronological train/test split, not random K-fold. For forecasting,
 random splits leak future months into training and produce inflated metrics
 that collapse in production. The split is by date: train through August 2025,
 test on September–December 2025. The model never sees a single row from the
 test period until final evaluation.
 
-**Leak-free lag features.** Every lag uses `shift(n)` *inside* a
-`groupby(ward, type)`, which structurally cannot pull values from later rows.
-The notebook includes a runnable `assert` that checks `lag_1` equals the
-previous month's count for a sample series. If the assertion fails, the
-notebook halts — guaranteed-correct, not assumed-correct.
-
-**Density-thresholded scoping.** The 14 standard crime categories were
-filtered to the 10 with at least 5 incidents per ward-month on average, then
-each retained type's zero-fraction was verified to confirm forecastability.
+Density-thresholded scoping. The 14 standard crime categories were
+filtered to the 10 with at least 5 incidents per ward-month on average.
 Rare types (Possession of Weapons, Bicycle Theft, Robbery, Other Crime) were
 excluded because their ward-months are dominated by near-random zeros that
 would only distort metrics without adding insight.
 
-**Official boundaries, not name-matching.** Wards were assigned via
-point-in-polygon spatial join against ONS May 2024 boundary data, scoped to
-the 33 official Greater London authorities using the ONS Ward-to-LAD lookup
-(LAD code prefix `E09`). Quick approximations from LSOA names were used only
-for exploratory EDA, never for modelling.
-
-**Conservation checks at every transformation.** Crime totals are asserted
-identical before and after every step that could lose or duplicate data
-(aggregation, zero-fill, ward filter, ward join). If a conservation check
-fails, the notebook stops. There is no silent data loss anywhere in the
-pipeline.
-
-**XGBoost with `count:poisson` objective.** Crime counts are non-negative
-integers — the statistically appropriate loss family is Poisson, not the
-default squared-error regression. Matching the loss to the target's
-distribution is the kind of detail that signals real ML literacy.
-
----
+Wards were assigned via point in polygon spatial join against ONS May 2024 boundary data,
+scoped to the 33 official Greater London authorities using the ONS Ward-to-LAD lookup
+(LAD code prefix `E09`).
 
 ## The data
 
@@ -109,11 +82,9 @@ distribution is the kind of detail that signals real ML literacy.
 | Ward boundaries (BGC) | [ONS Open Geography Portal](https://geoportal.statistics.gov.uk/) | May 2024 | Spatial join + map |
 | Ward → LAD lookup | ONS Open Geography Portal | May 2024 | London scoping |
 
-The crime data alone is 2,287,673 cleaned rows after dropping the small
+The raw police data isn't committed (it's 500 MB+). The crime data alone is 2,287,673 cleaned rows after dropping the small
 fraction with missing coordinates. All 48 source CSVs and the boundary files
 are publicly available and free.
-
----
 
 ## How to reproduce
 
@@ -126,45 +97,16 @@ cd london-crime-hotspot-prediction
 pip install -r requirements.txt
 ```
 
-The raw police data isn't committed (it's ~500 MB). Download instructions are
-in `notebooks/00_data_download.md`. Once the raw files are in
-`data/raw/`, run the notebooks in order: `01` through `08`. Each is
-self-contained and runs in seconds-to-minutes; the full pipeline runs in
-about 15 minutes on a modern laptop.
-
----
-
-## What I'd do differently
-
-A short, honest section because portfolio projects look stronger when they
-state their limitations.
-
-**Reporting delay.** The crime data uses month of *reporting*, not month of
-*occurrence*. For high-frequency crimes like Anti-social behaviour, the two
-are usually the same month. For slower-discovery crimes like fraud or
-holiday-period burglary, there's a small bias. Modelling this directly would
-require offence-date data the public dataset doesn't expose.
-
-**Snapped coordinates.** Each crime is moved to one of ~750,000 anonymous
-"snap points" before publication, each representing at least 8 nearby
-addresses. This is good enough for ward-level analysis and was a deliberate
-constraint of the project. Sub-street modelling would require non-public
-operational data.
-
-**A two-year forecasting window is the lower bound.** Twelve months are
-needed for `lag_12` (the seasonal feature), which means only ~12 months of
-data have a full feature set. With three or four years of history the lag
+A two-year forecasting window is the lower bound.  With three or four years of history the lag
 features would be more reliable and feature importance might surface stronger
 secondary signals.
 
-**The autocorrelation ceiling is real.** A more elaborate model — neural
-sequence models, hierarchical Bayesian approaches, or external
-covariates like weather, events, or transport — could push beyond the
-~15% beat on the naive baseline. None of those would change the
+ A more elaborate model, neural sequence models, hierarchical Bayesian approaches, or external
+covariates like weather, events, or transport could push beyond the
+15% beat on the naive baseline. None of those would change the
 fundamental finding: ward-month crime is dominated by short-range
 autocorrelation, and that ceiling is structural to the problem.
 
----
 
 ## Repo structure
 
@@ -198,7 +140,3 @@ autocorrelation, and that ceiling is structural to the problem.
 pandas · geopandas · scikit-learn · xgboost · folium · matplotlib · seaborn
 
 ---
-
-## Author
-
-[Your Name] — [LinkedIn](https://linkedin.com/in/your-handle) · [Portfolio](your-portfolio-link)
